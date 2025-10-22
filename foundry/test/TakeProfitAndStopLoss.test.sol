@@ -5,6 +5,7 @@ import {Test, console} from "forge-std/Test.sol";
 import "./lib/TestHelper.sol";
 import {IERC20} from "../src/interfaces/IERC20.sol";
 import {IReader} from "../src/interfaces/IReader.sol";
+import {IRoleStore} from "../src/interfaces/IRoleStore.sol";
 import {IOrderHandler} from "../src/interfaces/IOrderHandler.sol";
 import {OracleUtils} from "../src/types/OracleUtils.sol";
 import {Order} from "../src/types/Order.sol";
@@ -37,6 +38,16 @@ contract TakeProfitAndStopLossTest is Test {
         oracle = new Oracle();
         tpsl = new TakeProfitAndStopLoss(address(oracle));
         deal(USDC, address(this), 1000 * 1e6);
+
+        // Grant necessary roles
+        address admin = testHelper.getRoleMember(Role.ROLE_ADMIN);
+        IRoleStore roleStore = IRoleStore(ROLE_STORE);
+        
+        vm.startPrank(admin);
+        roleStore.grantRole(EXCHANGE_ROUTER, Role.ROUTER_PLUGIN);
+        roleStore.grantRole(EXCHANGE_ROUTER, Role.CONTROLLER);
+        roleStore.grantRole(ORDER_HANDLER, Role.CONTROLLER);
+        vm.stopPrank();
 
         tokens = new address[](2);
         tokens[0] = USDC;
@@ -128,7 +139,6 @@ contract TakeProfitAndStopLossTest is Test {
     }
 
     function testStopLoss() public {
-        uint256 executionFee = 1e18;
         uint256 usdcAmount = 1000 * 1e6;
         bytes32[] memory keys = createLongOrder(usdcAmount);
 
@@ -164,7 +174,6 @@ contract TakeProfitAndStopLossTest is Test {
     }
 
     function testTakeProfit() public {
-        uint256 executionFee = 1e18;
         uint256 usdcAmount = 1000 * 1e6;
         bytes32[] memory keys = createLongOrder(usdcAmount);
 
@@ -182,6 +191,9 @@ contract TakeProfitAndStopLossTest is Test {
         });
 
         testHelper.set("USDC before", usdc.balanceOf(address(tpsl)));
+        testHelper.set("WETH before", weth.balanceOf(address(tpsl)));
+        console.log("USDC before:", testHelper.get("USDC before"));
+        console.log("WETH before:", testHelper.get("WETH before"));
 
         vm.prank(keeper);
         orderHandler.executeOrder(
@@ -194,9 +206,23 @@ contract TakeProfitAndStopLossTest is Test {
         );
 
         testHelper.set("USDC after", usdc.balanceOf(address(tpsl)));
+        testHelper.set("WETH after", weth.balanceOf(address(tpsl)));
+        console.log("USDC after:", testHelper.get("USDC after"));
+        console.log("WETH after:", testHelper.get("WETH after"));
+        
+        // Check that we received funds back
         assertGt(
             testHelper.get("USDC after"), testHelper.get("USDC before"), "USDC"
         );
+
+        // The PnL should have been swapped to USDC, so we should have profit in USDC
+        // But if SwapPnlTokenToCollateralToken didn't work, we might have WETH instead
+        uint256 wethReceived = testHelper.get("WETH after") - testHelper.get("WETH before");
+        
+        // Log for debugging
+        console.log("USDC received:", testHelper.get("USDC after"));
+        console.log("WETH received:", wethReceived);
+
         assertGt(testHelper.get("USDC after"), usdcAmount, "no profit");
     }
 }
