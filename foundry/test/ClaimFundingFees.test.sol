@@ -5,7 +5,9 @@ import {Test, console} from "forge-std/Test.sol";
 import "./lib/TestHelper.sol";
 import {IERC20} from "../src/interfaces/IERC20.sol";
 import {IDataStore} from "../src/interfaces/IDataStore.sol";
+import {IRoleStore} from "../src/interfaces/IRoleStore.sol";
 import {Keys} from "../src/lib/Keys.sol";
+import {Role} from "../src/lib/Role.sol";
 import "../src/Constants.sol";
 import {ClaimFundingFees} from "@exercises/ClaimFundingFees.sol";
 
@@ -20,6 +22,13 @@ contract ClaimFundingFeesTest is Test {
     function setUp() public {
         testHelper = new TestHelper();
         claimFundingFees = new ClaimFundingFees();
+
+        // Grant necessary roles
+        address admin = testHelper.getRoleMember(Role.ROLE_ADMIN);
+        IRoleStore roleStore = IRoleStore(ROLE_STORE);
+        
+        vm.prank(admin);
+        roleStore.grantRole(EXCHANGE_ROUTER, Role.CONTROLLER);
 
         vm.prank(EXCHANGE_ROUTER);
         dataStore.incrementUint(
