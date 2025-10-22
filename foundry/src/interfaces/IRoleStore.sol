@@ -6,4 +6,7 @@ interface IRoleStore {
         external
         view
         returns (address[] memory);
+    
+    function grantRole(address account, bytes32 roleKey) external;
+    function hasRole(address account, bytes32 roleKey) external view returns (bool);
 }

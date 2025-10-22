@@ -6,6 +6,7 @@ import "./lib/TestHelper.sol";
 import {IERC20} from "../src/interfaces/IERC20.sol";
 import {IOrderHandler} from "../src/interfaces/IOrderHandler.sol";
 import {IReader} from "../src/interfaces/IReader.sol";
+import {IRoleStore} from "../src/interfaces/IRoleStore.sol";
 import {OracleUtils} from "../src/types/OracleUtils.sol";
 import {Order} from "../src/types/Order.sol";
 import "../src/Constants.sol";
@@ -33,6 +34,17 @@ contract MarketSwapTest is Test {
         keeper = testHelper.getRoleMember(Role.ORDER_KEEPER);
 
         swap = new MarketSwap();
+        
+        // Grant necessary roles
+        address admin = testHelper.getRoleMember(Role.ROLE_ADMIN);
+        IRoleStore roleStore = IRoleStore(ROLE_STORE);
+        
+        vm.startPrank(admin);
+        roleStore.grantRole(EXCHANGE_ROUTER, Role.ROUTER_PLUGIN);
+        roleStore.grantRole(EXCHANGE_ROUTER, Role.CONTROLLER);
+        roleStore.grantRole(ORDER_HANDLER, Role.CONTROLLER);
+        vm.stopPrank();
+        
         deal(WETH, address(this), 1000 * 1e18);
 
         tokens = new address[](3);
