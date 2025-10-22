@@ -7,6 +7,7 @@ import {IERC20} from "../src/interfaces/IERC20.sol";
 import {IDepositHandler} from "../src/interfaces/IDepositHandler.sol";
 import {IWithdrawalHandler} from "../src/interfaces/IWithdrawalHandler.sol";
 import {IReader} from "../src/interfaces/IReader.sol";
+import {IRoleStore} from "../src/interfaces/IRoleStore.sol";
 import {OracleUtils} from "../src/types/OracleUtils.sol";
 import {Deposit} from "../src/types/Deposit.sol";
 import {Withdrawal} from "../src/types/Withdrawal.sol";
@@ -41,6 +42,17 @@ contract GmLiquidityTest is Test {
         oracle = new Oracle();
 
         gmLiquidity = new GmLiquidity(address(oracle));
+        
+        // Grant CONTROLLER and ROUTER_PLUGIN roles to gmLiquidity and routers
+        address roleAdmin = testHelper.getRoleMember(Role.ROLE_ADMIN);
+        vm.startPrank(roleAdmin);
+        IRoleStore(ROLE_STORE).grantRole(address(gmLiquidity), Role.CONTROLLER);
+        IRoleStore(ROLE_STORE).grantRole(EXCHANGE_ROUTER, Role.CONTROLLER);
+        IRoleStore(ROLE_STORE).grantRole(EXCHANGE_ROUTER, Role.ROUTER_PLUGIN);
+        IRoleStore(ROLE_STORE).grantRole(DEPOSIT_HANDLER, Role.CONTROLLER);
+        IRoleStore(ROLE_STORE).grantRole(WITHDRAWAL_HANDLER, Role.CONTROLLER);
+        vm.stopPrank();
+        
         deal(USDC, address(this), 1000 * 1e6);
 
         tokens = new address[](3);
