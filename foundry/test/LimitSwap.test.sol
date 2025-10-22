@@ -5,6 +5,7 @@ import {Test, console} from "forge-std/Test.sol";
 import "./lib/TestHelper.sol";
 import {IERC20} from "../src/interfaces/IERC20.sol";
 import {IReader} from "../src/interfaces/IReader.sol";
+import {IRoleStore} from "../src/interfaces/IRoleStore.sol";
 import {IOrderHandler} from "../src/interfaces/IOrderHandler.sol";
 import {OracleUtils} from "../src/types/OracleUtils.sol";
 import {Order} from "../src/types/Order.sol";
@@ -36,6 +37,16 @@ contract LimitSwapTest is Test {
         keeper = testHelper.getRoleMember(Role.ORDER_KEEPER);
         oracle = new Oracle();
         limit = new LimitSwap();
+
+        // Grant necessary roles
+        address admin = testHelper.getRoleMember(Role.ROLE_ADMIN);
+        IRoleStore roleStore = IRoleStore(ROLE_STORE);
+        
+        vm.startPrank(admin);
+        roleStore.grantRole(EXCHANGE_ROUTER, Role.ROUTER_PLUGIN);
+        roleStore.grantRole(EXCHANGE_ROUTER, Role.CONTROLLER);
+        roleStore.grantRole(ORDER_HANDLER, Role.CONTROLLER);
+        vm.stopPrank();
         deal(USDC, address(this), 1000 * 1e6);
 
         tokens = new address[](2);
