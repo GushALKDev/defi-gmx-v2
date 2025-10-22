@@ -24,8 +24,20 @@ contract Strategy is Auth, GmxHelper {
 
     receive() external payable {}
 
-    // Task 1: Calculate total vaule managed by this contract in terms of WETH
-    function totalValueInToken() external view returns (uint256) {}
+    // Task 1: Calculate total value managed by this contract in terms of WETH
+    function totalValueInToken() external view returns (uint256) {
+        uint256 value = weth.balanceOf(address(this));
+        int256 currentCollateral = getPositionWithPnlInToken();
+
+        if (currentCollateral >= 0) {
+            value += uint256(currentCollateral);
+        } else {
+            // Reduce the value by the loss, but not below zero
+            value -= Math.min(value, uint256(-currentCollateral));
+        }
+
+        return value;
+    }
 
     // Task 2: Create market increase order
     function increase(uint256 wethAmount)
@@ -33,7 +45,12 @@ contract Strategy is Auth, GmxHelper {
         payable
         auth
         returns (bytes32 orderKey)
-    {}
+    {
+        orderKey = createIncreaseShortPositionOrder({
+            executionFee: msg.value,
+            longTokenAmount: wethAmount
+        });
+    }
 
     // Task 3: Create market decrease order
     // Function call is from the vault when the callback contract is not address(0).
@@ -44,17 +61,40 @@ contract Strategy is Auth, GmxHelper {
         returns (bytes32 orderKey)
     {
         if (callbackContract == address(0)) {
-            // Write your code here
+            orderKey = createDecreaseShortPositionOrder({
+                executionFee: msg.value,
+                longTokenAmount: wethAmount,
+                receiver: address(this),
+                callbackContract: address(0),
+                callbackGasLimit: 0
+            });
         } else {
-            // Write your code here
+            uint256 maxCallbackGasLimit = getMaxCallbackGasLimit();
+            require(msg.value >= maxCallbackGasLimit, "Insufficient execution fee");
+
+            uint256 positionCollateralAmount = getPositionCollateralAmount();
+            uint256 positionWithPnlInToken = uint256(getPositionWithPnlInToken());
+            uint256 longTokenAmount = positionCollateralAmount * wethAmount / positionWithPnlInToken;
+
+            orderKey = createDecreaseShortPositionOrder({
+                executionFee: msg.value,
+                longTokenAmount: longTokenAmount,
+                receiver: callbackContract,
+                callbackContract: callbackContract,
+                callbackGasLimit: maxCallbackGasLimit
+            });
         }
     }
 
     // Task 4: Cancel an order
-    function cancel(bytes32 orderKey) external payable auth {}
+    function cancel(bytes32 orderKey) external payable auth {
+        cancelOrder(orderKey);
+    }
 
     // Task 5: Claim funding fees
-    function claim() external {}
+    function claim() external {
+        claimFundingFees();
+    }
 
     function transfer(address dst, uint256 amount) external auth {
         weth.transfer(dst, amount);

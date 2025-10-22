@@ -17,6 +17,7 @@ import {Oracle} from "../../src/lib/Oracle.sol";
 import {Vault} from "@exercises/app/Vault.sol";
 import {WithdrawCallback} from "@exercises/app/WithdrawCallback.sol";
 import {Strategy} from "@exercises/app/Strategy.sol";
+import {IRoleStore} from "../../src/interfaces/IRoleStore.sol";
 
 contract StrategyTestHelper is Test {
     IERC20 internal constant weth = IERC20(WETH);
@@ -58,6 +59,16 @@ contract StrategyTestHelper is Test {
         strategy.allow(address(vault));
         // Allow callback to call vault
         vault.allow(address(withdrawCallback));
+
+        // Grant necessary roles
+        address admin = testHelper.getRoleMember(Role.ROLE_ADMIN);
+        IRoleStore roleStore = IRoleStore(ROLE_STORE);
+        
+        vm.startPrank(admin);
+        roleStore.grantRole(EXCHANGE_ROUTER, Role.ROUTER_PLUGIN);
+        roleStore.grantRole(EXCHANGE_ROUTER, Role.CONTROLLER);
+        roleStore.grantRole(ORDER_HANDLER, Role.CONTROLLER);
+        vm.stopPrank();
 
         deal(WETH, address(this), 1000 * 1e18);
 
