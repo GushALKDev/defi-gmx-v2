@@ -8,6 +8,7 @@ import {IERC20} from "../src/interfaces/IERC20.sol";
 import {IGlvHandler} from "../src/interfaces/IGlvHandler.sol";
 import {IWithdrawalHandler} from "../src/interfaces/IWithdrawalHandler.sol";
 import {IGlvReader} from "../src/interfaces/IGlvReader.sol";
+import {IRoleStore} from "../src/interfaces/IRoleStore.sol";
 import {OracleUtils} from "../src/types/OracleUtils.sol";
 import {GlvDeposit} from "../src/types/GlvDeposit.sol";
 import {GlvWithdrawal} from "../src/types/GlvWithdrawal.sol";
@@ -43,6 +44,14 @@ contract GlvLiquidityTest is Test {
         deal(USDC, address(this), 1000 * 1e6);
 
         keeper = testHelper.getRoleMember(Role.ORDER_KEEPER);
+
+        // Grant CONTROLLER and ROUTER_PLUGIN roles to gmLiquidity and routers
+        address roleAdmin = testHelper.getRoleMember(Role.ROLE_ADMIN);
+        vm.startPrank(roleAdmin);
+        IRoleStore(ROLE_STORE).grantRole(GLV_ROUTER, Role.ROUTER_PLUGIN);
+        IRoleStore(ROLE_STORE).grantRole(GLV_ROUTER, Role.CONTROLLER);
+        IRoleStore(ROLE_STORE).grantRole(GLV_HANDLER, Role.CONTROLLER);
+        vm.stopPrank();
 
         address[] memory markets = new address[](2);
         markets[0] = GM_TOKEN_ETH_WETH_USDC;
